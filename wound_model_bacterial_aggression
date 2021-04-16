@@ -1,0 +1,131 @@
+to infect
+  ask patch 0 0 [
+    ask n-of Initial-Bacteria patches in-radius 15[
+      sprout 1        ; create the number of initial bacteria as designated by the slider on the interface tab
+      [
+        set breed bacteria              ; denote the 'breed' of the turtle as an "bacteria" cell
+        set shape "bacteria"            ; denote the shape of the turtle as an bacteria cell shape
+        set age random prolif-rate
+      ]
+    ]
+  ]
+
+end
+
+to proliferate-bacteria         ; this sub-routine simulates cell proliferation without any contact inhibition  [
+ ifelse
+ bact-type = "Aggressive strain"
+ [
+  ask bacteria [
+      if age mod prolif-rate = 0 and count bacteria-on neighbors < 30                 ; cell division happens for every cell at the same time (i.e. clock tick) according to the 'prolif-rate' set on the interface tab. See 'proliferate' sub-routine below.
+      [
+        hatch 5 [
+          let attempted-moves  0
+          while [any? other bacteria-here and attempted-moves < 16]
+          [
+            if not any? neighbors with [wound = 1 and not any? bacteria-here][die]
+            move-to one-of neighbors with [wound = 1 and not any? bacteria-here]
+            set attempted-moves attempted-moves + 1]
+
+        ]
+      ]
+    ]
+  ]
+   [
+  ask bacteria [
+      if age mod prolif-rate = 0 and count bacteria-on neighbors < 3                 ; cell division happens for every cell at the same time (i.e. clock tick) according to the 'prolif-rate' set on the interface tab. See 'proliferate' sub-routine below.
+      [
+        hatch 1 [
+          let attempted-moves  0
+          while [any? other bacteria-here and attempted-moves < 16]
+          [
+            if not any? neighbors with [wound = 1 and not any? bacteria-here][die]
+            move-to one-of neighbors with [wound = 1 and not any? bacteria-here]
+            set attempted-moves attempted-moves + 1]
+
+        ]
+      ]
+    ]
+  ]
+
+end
+
+to proliferate-neutrophils                        ; this procedure simulates cell proliferation with contact inhibition for neutrophils
+  ask neutrophils [
+    if age mod 6 = 0 and age < 48 and count neutrophils-on neighbors = 0
+      [
+        hatch 1 [
+          let attempted-moves  0
+          while [any? other neutrophils-here and attempted-moves < 16]
+          [
+            move-to one-of neighbors with [not any? neutrophils-here]
+            set attempted-moves attempted-moves + 1]
+
+        ]
+      ]
+  ]
+
+end
+
+to proliferate-macrophages                       ; this procedure simulates cell proliferation with contact inhibition for macrophages
+  ask macrophages [
+    if age mod 15 = 0 and age < 48 and count macrophages-on neighbors = 0
+      [
+        hatch 1 [
+          let attempted-moves  0
+          while [any? other macrophages-here and attempted-moves < 16]
+          [
+            move-to one-of neighbors with [not any? macrophages-here]
+            set attempted-moves attempted-moves + 1]
+
+        ]
+      ]
+  ]
+
+end
+
+to migrate
+  if random 100 <= migration-probability          ; migration is probabalistic based on a slider value
+  [
+    ask bacteria
+    [
+      if any? neighbors with [not any? bacteria-here and wound = 1]            ; migration only occurs if there is at least one empty neighboring patch
+      [
+        move-to one-of neighbors with [not any? bacteria-here] ; migrate to one of the 8 neighboring patches without a cell in it already
+      ]
+    ]
+  ]
+
+  ask neutrophils ;neutrophils move towards bacteria in their homine range, or to a random neighboring patch
+  [
+    ifelse any? bacteria in-radius Neutrophil-Homing-Range [
+      face min-one-of bacteria [distance myself]
+      fd 1
+    ]
+    [move-to one-of neighbors]
+  ]
+
+  ask macrophages
+  [
+    ifelse any? bacteria-on neighbors or any? neighbors with [debris > 0]
+    [move-to one-of neighbors with [any? bacteria-here or debris > 0]]
+    [move-to one-of neighbors]
+  ]
+end
+
+to Leukocyte-Actions
+  ask neutrophils [if any? bacteria-on patch-here
+    [
+      ask patch-here [set debris debris + (count bacteria-here)]
+      ask bacteria-on patch-here [die]
+    ]
+
+  ]
+
+  ask macrophages [if any? bacteria-on patch-here
+    [ask bacteria-on patch-here [die]]
+    if [debris] of patch-here > 0
+    [ask patch-here [set debris debris - Macrophage-Strength]]
+  ]
+
+end
